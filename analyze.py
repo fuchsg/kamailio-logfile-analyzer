@@ -41,7 +41,7 @@ def get_log_level(logline:str) -> str:
   else:
     return None
 
-def count_call_setups_and_sip_messages(log_file_path):
+def get_kpi(log_file_path):
   """
   Zählt die Anzahl der Call-Aufbauten (A-LEG und B-LEG), aller SIP-Nachrichten sowie die durchschnittliche Gesprächsdauer und Concurrent Calls.
   Counts number of call setups (A-Leg and B-Leg), number of SIP-messages, number Average Call Duration (ACD) and Concurrent Calls
@@ -161,7 +161,7 @@ if __name__ == "__main__":
       print(f"ERROR: File '{log_file_path}' not found.")
       continue  # Try next file
 
-    data = count_call_setups_and_sip_messages(log_file_path)
+    data = get_kpi(log_file_path)
 
   # Aggregate hour-based KPI
   for hour in data:
