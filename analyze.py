@@ -51,9 +51,10 @@ def count_call_setups_and_sip_messages(log_file_path):
   :rtype: dict
   """
   # REGEX paterns for data extraction
-  a_leg_pattern = re.compile(r"(New request on proxy.*M=INVITE)")
-  b_leg_pattern = re.compile(r"(New request on proxy for the B LEG of the call.*M=INVITE)")
-  sip_method_pattern = re.compile(r"M=(\w+)")  # Fängt alle SIP-Methoden
+  a_leg_pattern = re.compile(r"New request on proxy - M=INVITE")
+  b_leg_pattern = re.compile(r"New request on proxy for the B LEG of the call - M=INVITE")
+  sip_request_method_pattern = re.compile(r"New request on proxy.*M=(\w+)")
+  sip_reply_method_pattern = re.compile(r"New reply on proxy.*M=(\w+)")
   dialog_end_pattern = re.compile(r"dialog:end.*callid: ([^ ]+) .* start_time: (\d+) duration: (\d+)")
   dialog_failed_pattern = re.compile(r"dialog:failed.*callid: ([^ ]+)")
 
@@ -66,41 +67,84 @@ def count_call_setups_and_sip_messages(log_file_path):
     for line in tqdm(logfile, desc=f'Processing {os.path.basename(log_file_path)}', unit='lines', total=line_count, ascii=('-', '=')):
 #    for line in logfile:
 
-      match line:
-        case _ if bool(a_leg_pattern.search(line)):
-          hour = get_hour_from_logline(line)
-          method = 'INVITE A-LEG'
-          data[hour][method] += 1
-        case _ if bool(b_leg_pattern.search(line)):
-          hour = get_hour_from_logline(line)
-          method = 'INVITE B-LEG'
-          data[hour][method] += 1
-        case _ if (m := sip_method_pattern.search(line)):
-          hour = get_hour_from_logline(line)
-          method = m.group(1)
-          data[hour][method] += 1
-        case _ if (m := dialog_failed_pattern.search(line)):
-          hour = get_hour_from_logline(line)
-          method = 'Failed calls'
-          data[hour][method] += 1
-        case _ if (m := dialog_end_pattern.search(line)):
-          hour = get_hour_from_logline(line)
-          data[hour]['Successfull calls'] += 1
-          method = 'Concurrent Calls'
-          start_time = int(m.group(2))
-          call_duration = int(m.group(3))
-          data[hour]['Total call time'] += call_duration
-          end_time = start_time + call_duration
-          # Make sure list for storing Concurrent Call data exists in dict (3600 entries per hour)
-          if method not in data[hour]:
-            data[hour][method] = [0] * 3600
-          # Update Concurrent Calls for every second of the hour
-          for t in range(start_time % 3600, end_time % 3600 + 1):
-            data[hour][method][t] += 1
       loglevel = get_log_level(line)
       if loglevel == 'DEBUG':
         continue
 
+      if re.search(a_leg_pattern, line):
+        hour = get_hour_from_logline(line)
+        if hour not in data: data[hour] = {}
+        method = 'INVITE A-leg'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        continue
+
+      if re.search(b_leg_pattern, line):
+        hour = get_hour_from_logline(line)
+        if hour not in data: data[hour] = {}
+        method = 'INVITE B-leg'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        continue
+
+      if m := sip_request_method_pattern.search(line):
+        hour = get_hour_from_logline(line)
+        if hour not in data: data[hour] = {}
+        method = f"{m.group(1)} request"
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        continue
+
+      if m := sip_reply_method_pattern.search(line):
+        hour = get_hour_from_logline(line)
+        if hour not in data: data[hour] = {}
+        method = f"{m.group(1)} reply"
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        continue
+
+      if m := dialog_failed_pattern.search(line):
+        hour = get_hour_from_logline(line)
+        if hour not in data: data[hour] = {}
+        method = 'Failed calls'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        continue
+
+      if m := dialog_end_pattern.search(line):
+        hour = get_hour_from_logline(line)
+
+        method = 'Successfull calls'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        
+        start_time = int(m.group(2))
+        call_duration = int(m.group(3))
+        end_time = start_time + call_duration
+        
+        method = 'Total call time'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += call_duration
+        
+        method = 'ZDC (Zero Duration Calls)'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] += 1
+        
+        method = 'Concurrent calls'
+        # Make sure list for storing Concurrent Call data exists in dict (3600 entries per hour)
+        if method not in data[hour]:
+          data[hour][method] = [0] * 3600
+        # Update Concurrent Calls for every second of the hour
+        for t in range(start_time % 3600, end_time % 3600 + 1):
+          data[hour][method][t] += 1
 
   return data
 
@@ -110,7 +154,7 @@ if __name__ == "__main__":
     print("ERROR: No logfiles given.")
     sys.exit(1)
 
-  data = defaultdict(lambda: defaultdict(int))
+  data = {}
 
   for log_file_path in sys.argv[1:]:
     if not os.path.exists(log_file_path):
@@ -121,12 +165,13 @@ if __name__ == "__main__":
 
   # Aggregate hour-based KPI
   for hour in data:
-    data[hour]['Max CC'] = max(data[hour]['Concurrent Calls'])
-    del data[hour]['Concurrent Calls'] # Delete list of calls per second - no longer needed
+    data[hour]['Max CC'] = max(data[hour]['Concurrent calls'])
+    del data[hour]['Concurrent calls'] # Delete list of calls per second - no longer needed
     if data[hour]['Successfull calls']:
       data[hour]['ACD'] = round(data[hour]['Total call time']/data[hour]['Successfull calls'])
-    if data[hour]['INVITE']:
-      data[hour]['ASR'] = round(data[hour]['Successfull calls']/data[hour]['INVITE A-LEG']*100)
+    if data[hour]['INVITE A-leg']:
+      data[hour]['ASR'] = round(data[hour]['Successfull calls']/data[hour]['INVITE A-leg']*100)
+    data[hour]['Erlang'] = round(data[hour]['Total call time']/3600) # https://en.wikipedia.org/wiki/Erlang_(unit)
 
   # Dataframe operations
   df = pd.DataFrame(data)
