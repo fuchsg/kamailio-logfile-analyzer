@@ -64,7 +64,9 @@ def get_kpi(log_file_path):
     line_count = sum(1 for line in logfile)
     logfile.seek(0)
 
-    for line in tqdm(logfile, desc=f'Processing {os.path.basename(log_file_path)}', unit='lines', total=line_count, ascii=('-', '=')):
+    pbar_format = "{desc}: {percentage:3.0f}%|{bar}| {n:7.0f}/{total_fmt} [{elapsed}<{remaining} {rate_fmt}]"
+    pbar_desc = f"Processing {os.path.basename(log_file_path)}"
+    for line in tqdm(logfile, desc=pbar_desc, unit='lines', total=line_count, ascii=('-', '='), bar_format=pbar_format, unit_scale=True):
 #    for line in logfile:
 
       loglevel = get_log_level(line)
