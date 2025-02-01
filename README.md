@@ -18,15 +18,20 @@ Retrieves SIP and softswitch KPI from proxy logs.
 ### Usage
 
 ```
-usage: analyze.py [-h] logfile [logfile ...]
+usage: analyze.py [-h] [-j {columns,index,records,split,table,values} | -t TABLE_FORMAT] logfile [logfile ...]
 
 Kamailio Proxy logfile parser
 
 positional arguments:
-  logfile     list of logfiles to parse
+  logfile               list of logfiles to parse
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help            show this help message and exit
+  -j, --json {columns,index,records,split,table,values}
+                        JSON formatted output using Pandas DataFrame "orient" format (see
+                        https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_json.html), recomended value is "columns"
+  -t, --table-format TABLE_FORMAT
+                        format table output using tabulate tablefmt (see https://pypi.org/project/tabulate/)
 ```
 
 ### Results

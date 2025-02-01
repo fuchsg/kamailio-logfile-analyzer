@@ -7,6 +7,7 @@ import os
 import pandas as pd
 import re
 import sys
+from tabulate import tabulate
 from tqdm import tqdm
 
 def get_hour_from_logline(logline:str) -> str:
@@ -159,7 +160,12 @@ def get_kpi(log_file_path):
 if __name__ == "__main__":
   # Check command line parameters
   cli = argparse.ArgumentParser(description='Kamailio Proxy logfile parser')
-  cli.add_argument('logfile', nargs='+', help='List of logfiles to parse')
+  cli.add_argument('logfile', nargs='+', help='list of logfiles to parse')
+  group = cli.add_mutually_exclusive_group()
+  help='JSON formatted output using Pandas DataFrame "orient" format (see https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_json.html), recomended value is "columns"'
+  group.add_argument('-j', '--json', choices=['columns', 'index', 'records', 'split', 'table', 'values'], help=help)
+  help='format table output using tabulate tablefmt (see https://pypi.org/project/tabulate/)'
+  group.add_argument('-t', '--table-format', help=help)
   args = cli.parse_args()
 
   data = {}
@@ -188,4 +194,9 @@ if __name__ == "__main__":
   df = df.round(0).astype(int)
   df = df.rename(columns=lambda hour: f"{hour:02d}:00")
 
-  print(df)
+  if args.table_format:
+    print(tabulate(df, headers='keys', tablefmt=args.table_format, floatfmt=",.0f"))
+  elif args.json:
+    print(df.to_json(orient=args.json, indent=2))
+  else:
+    print(df)
