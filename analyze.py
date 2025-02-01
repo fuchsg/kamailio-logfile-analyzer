@@ -123,21 +123,21 @@ def count_call_setups_and_sip_messages(log_file_path):
         if method not in data[hour]:
           data[hour][method] = 0
         data[hour][method] += 1
-        
+
         start_time = int(m.group(2))
         call_duration = int(m.group(3))
         end_time = start_time + call_duration
-        
+
         method = 'Total call time'
         if method not in data[hour]:
           data[hour][method] = 0
         data[hour][method] += call_duration
-        
+
         method = 'ZDC (Zero Duration Calls)'
         if method not in data[hour]:
           data[hour][method] = 0
         data[hour][method] += 1
-        
+
         method = 'Concurrent calls'
         # Make sure list for storing Concurrent Call data exists in dict (3600 entries per hour)
         if method not in data[hour]:
