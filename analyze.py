@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import argparse
 from collections import defaultdict
 from datetime import datetime
 import os
@@ -157,18 +158,18 @@ def get_kpi(log_file_path):
 
 if __name__ == "__main__":
   # Check command line parameters
-  if len(sys.argv) < 2:
-    print("ERROR: No logfiles given.")
-    sys.exit(1)
+  cli = argparse.ArgumentParser(description='Kamailio Proxy logfile parser')
+  cli.add_argument('logfile', nargs='+', help='List of logfiles to parse')
+  args = cli.parse_args()
 
   data = {}
 
-  for log_file_path in sys.argv[1:]:
-    if not os.path.exists(log_file_path):
-      print(f"ERROR: File '{log_file_path}' not found.")
+  for logfile in args.logfile:
+    if not os.path.exists(logfile):
+      print(f"ERROR: File '{logfile}' not found.")
       continue  # Try next file
 
-    data = get_kpi(log_file_path)
+    data = get_kpi(logfile)
 
   # Aggregate hour-based KPI
   for hour in data:
