@@ -140,6 +140,11 @@ def get_kpi(log_file_path):
           data[hour][method] = 0
         data[hour][method] += 1
 
+        method = 'Longest Call'
+        if method not in data[hour]:
+          data[hour][method] = 0
+        data[hour][method] = call_duration if call_duration > data[hour][method] else data[hour][method]
+
         method = 'Concurrent calls'
         # Make sure list for storing Concurrent Call data exists in dict (3600 entries per hour)
         if method not in data[hour]:
