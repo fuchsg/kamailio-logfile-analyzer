@@ -26,6 +26,21 @@ def get_hour_from_logline(logline:str) -> str:
 #  return (hour, minute, second)
   return hour
 
+def get_log_level(logline:str) -> str:
+  """
+  Splits a logline to isolate the loglevel
+
+  :param str logline: The logline to search for the timestamp
+  :return: The loglevel
+  :rtype: str
+  """
+  parts = logline.split(': ')
+  if len(parts) > 2:  # Check if there's enough parts
+    loglevel = parts[1].split()[0]  # First word after the first ": "
+    return loglevel
+  else:
+    return None
+
 def count_call_setups_and_sip_messages(log_file_path):
   """
   Zählt die Anzahl der Call-Aufbauten (A-LEG und B-LEG), aller SIP-Nachrichten sowie die durchschnittliche Gesprächsdauer und Concurrent Calls.
@@ -82,6 +97,10 @@ def count_call_setups_and_sip_messages(log_file_path):
           # Update Concurrent Calls for every second of the hour
           for t in range(start_time % 3600, end_time % 3600 + 1):
             data[hour][method][t] += 1
+      loglevel = get_log_level(line)
+      if loglevel == 'DEBUG':
+        continue
+
 
   return data
 
