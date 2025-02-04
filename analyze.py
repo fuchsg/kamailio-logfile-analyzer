@@ -10,6 +10,9 @@ import sys
 from tabulate import tabulate
 from tqdm import tqdm
 
+# Local modules
+from modules.utils import Cursor
+
 def get_hour_from_logline(logline:str) -> str:
   """
   Returns the hour found in a timestamp of a logline following REGEX pattern
@@ -169,6 +172,7 @@ if __name__ == "__main__":
   args = cli.parse_args()
 
   data = {}
+  Cursor.hide()
 
   for logfile in args.logfile:
     if not os.path.exists(logfile):
@@ -200,3 +204,5 @@ if __name__ == "__main__":
     print(df.to_json(orient=args.json, indent=2))
   else:
     print(df)
+
+  Cursor.show()
