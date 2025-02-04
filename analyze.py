@@ -11,7 +11,7 @@ from tabulate import tabulate
 from tqdm import tqdm
 
 # Local modules
-from modules.utils import Cursor
+from modules.utils import Cursor, openlog
 
 def get_hour_from_logline(logline:str) -> str:
   """
@@ -65,7 +65,12 @@ def get_kpi(log_file_path):
 
   print(f"Skimming {log_file_path} ...", end='\r', flush=True)
   # Need file encoding as logfiles seem to contain UTF-8 characters
-  with open(log_file_path, "r", encoding="utf-8", errors="replace") as logfile:
+  logfile = openlog(log_file_path)
+  if logfile is None:
+    print(f"Error: Cannot open file '{log_file_path}'")
+    return
+
+  with logfile:
     line_count = sum(1 for line in logfile)
     logfile.seek(0)
 
@@ -204,5 +209,15 @@ if __name__ == "__main__":
     print(df.to_json(orient=args.json, indent=2))
   else:
     print(df)
+
+#  df = df.T
+#  # ASCII-Balkendiagramm für den "Erlang"-Wert
+#  max_value = df["Erlang"].max()
+#  scale = 50 / max_value  # Skaliert auf 50 Zeichen Breite
+
+#  print("Erlang-Werte pro Stunde\n")
+#  for hour, value in df["Erlang"].items():
+#    bar = "#" * int(value * scale)  # ASCII-Zeichen für Balken
+#    print(f"{hour}: {bar} ({value})")
 
   Cursor.show()
