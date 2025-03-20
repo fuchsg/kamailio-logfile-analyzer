@@ -46,7 +46,7 @@ def get_log_level(logline:str) -> str:
   else:
     return None
 
-def get_kpi(log_file_path):
+def get_kpi(log_file_path, kpi=None) -> dict[int, dict[str, int]]:
   """
   Zählt die Anzahl der Call-Aufbauten (A-LEG und B-LEG), aller SIP-Nachrichten sowie die durchschnittliche Gesprächsdauer und Concurrent Calls.
   Counts number of call setups (A-Leg and B-Leg), number of SIP-messages, number Average Call Duration (ACD) and Concurrent Calls
@@ -62,6 +62,11 @@ def get_kpi(log_file_path):
   sip_reply_method_pattern = re.compile(r"New reply on proxy.*M=(\w+)")
   dialog_end_pattern = re.compile(r"dialog:end.*callid: ([^ ]+) .* start_time: (\d+) duration: (\d+)")
   dialog_failed_pattern = re.compile(r"dialog:failed.*callid: ([^ ]+)")
+
+  # Open file to write log messages matching KPI to
+  if kpi:
+    kpi_trace_file_name = kpi.lower().replace(' ', '-') + '.log'
+    kpi_trace_file = open(kpi_trace_file_name, 'w')
 
   print(f"Skimming {log_file_path} ...", end='\r', flush=True)
   # Need file encoding as logfiles seem to contain UTF-8 characters
@@ -114,6 +119,8 @@ def get_kpi(log_file_path):
         hour = get_hour_from_logline(line)
         if hour not in data: data[hour] = {}
         method = f"{m.group(1)} reply"
+        if kpi:
+          kpi_trace_file.write(line)
         if method not in data[hour]:
           data[hour][method] = 0
         data[hour][method] += 1
@@ -163,12 +170,33 @@ def get_kpi(log_file_path):
         for t in range(start_time % 3600, end_time % 3600 + 1):
           data[hour][method][t] += 1
 
+  if kpi:
+    kpi_trace_file.close()
+
   return data
+
+def output(df:pd.DataFrame, args: argparse.Namespace) -> None:
+  outfile = open(args.file, 'w') if args.file else sys.stdout
+
+  try:
+    if args.table_format:
+      print(tabulate(df, headers='keys', tablefmt=args.table_format, floatfmt=",.0f"), file=outfile)
+    elif args.json:
+      print(df.to_json(orient=args.json, indent=2), file=outfile)
+    else:
+      print(df.to_string(index=True), file=outfile)
+  finally:
+    if args.file:
+      outfile.close() # Only close filehandle if it does not refer to STDOUT
 
 if __name__ == "__main__":
   # Check command line parameters
   cli = argparse.ArgumentParser(description='Kamailio Proxy logfile parser')
   cli.add_argument('logfile', nargs='+', help='list of logfiles to parse')
+  help = 'Filename for output to file'
+  cli.add_argument('-f', '--file', help=help)
+  help = 'Split logs for SIP message match as given as KPI in the output into a seperate logfile named after the KPI'
+  cli.add_argument('-k', '--kpi-to-trace', help=help)
   group = cli.add_mutually_exclusive_group()
   help='JSON formatted output using Pandas DataFrame "orient" format (see https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.to_json.html), recomended value is "columns"'
   group.add_argument('-j', '--json', choices=['columns', 'index', 'records', 'split', 'table', 'values'], help=help)
@@ -184,7 +212,7 @@ if __name__ == "__main__":
       print(f"ERROR: File '{logfile}' not found.")
       continue  # Try next file
 
-    data = get_kpi(logfile)
+    data = get_kpi(logfile, kpi=args.kpi_to_trace)
 
   # Aggregate hour-based KPI
   for hour in data:
@@ -203,12 +231,14 @@ if __name__ == "__main__":
   df = df.round(0).astype(int)
   df = df.rename(columns=lambda hour: f"{hour:02d}:00")
 
-  if args.table_format:
-    print(tabulate(df, headers='keys', tablefmt=args.table_format, floatfmt=",.0f"))
-  elif args.json:
-    print(df.to_json(orient=args.json, indent=2))
-  else:
-    print(df)
+  output(df, args)
+
+#  if args.table_format:
+#    print(tabulate(df, headers='keys', tablefmt=args.table_format, floatfmt=",.0f"))
+#  elif args.json:
+#    print(df.to_json(orient=args.json, indent=2))
+#  else:
+#    print(df)
 
 #  df = df.T
 #  # ASCII-Balkendiagramm für den "Erlang"-Wert
