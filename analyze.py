@@ -131,7 +131,7 @@ def get_kpi(log_file_path):
       if m := dialog_end_pattern.search(line):
         hour = get_hour_from_logline(line)
 
-        method = 'Successfull calls'
+        method = 'Successful calls'
         if method not in data[hour]:
           data[hour][method] = 0
         data[hour][method] += 1
@@ -188,13 +188,13 @@ if __name__ == "__main__":
 
   # Aggregate hour-based KPI
   for hour in data:
-    data[hour]['Max CC'] = max(data[hour]['Concurrent calls'])
-    del data[hour]['Concurrent calls'] # Delete list of calls per second - no longer needed
-    if data[hour]['Successfull calls']:
-      data[hour]['ACD'] = round(data[hour]['Total call time']/data[hour]['Successfull calls'])
-    if data[hour]['INVITE A-leg']:
-      data[hour]['ASR'] = round(data[hour]['Successfull calls']/data[hour]['INVITE A-leg']*100)
-    data[hour]['Erlang'] = round(data[hour]['Total call time']/3600) # https://en.wikipedia.org/wiki/Erlang_(unit)
+    data[hour]['Max CC'] = max(data[hour].get('Concurrent calls', [0]))
+    data[hour].pop('Concurrent calls', None) # Delete list of calls per second - no longer needed
+    if data[hour].get('Successful calls', 0):
+      data[hour]['ACD'] = round(data[hour]['Total call time']/data[hour]['Successful calls'])
+      if data[hour].get('INVITE A-leg', 0):
+        data[hour]['ASR'] = round(data[hour]['Successful calls']/data[hour]['INVITE A-leg']*100)
+    data[hour]['Erlang'] = round(data[hour].get('Total call time', 0)/3600) # https://en.wikipedia.org/wiki/Erlang_(unit)
 
   # Dataframe operations
   df = pd.DataFrame(data)
